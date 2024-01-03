@@ -1,9 +1,32 @@
 // use d3 to pull in the data from the USGS website as a data promise, then call createMarkers() when fulfilled
 d3.json("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson").then(createMarkers);
+d3.json("./boundaries.json").then(createPlateBoundaries);
+
+let plateBoundaryLayer = null;
+
+//draw the plate boundaries
+function createPlateBoundaries(response){
+  // console.log("Plate boundaries: ",response);
+  let plateBoundaries = response.features;
+  let plateBoundaryMarkers = [];
+  for (let index = 0; index < plateBoundaries.length; index++) {
+    let plateBoundary = plateBoundaries[index];
+    console.log("plate boundary: ", plateBoundary);
+    let coordinates = plateBoundary.geometry.coordinates.map(coord => [coord[1],coord[0]]);
+    let plateBoundaryMarker = L.polyline(coordinates, {
+      color: "orange",
+      weight: 2,
+      opacity: 1
+    });
+    plateBoundaryMarkers.push(plateBoundaryMarker);
+  }
+  plateBoundaryLayer = L.layerGroup(plateBoundaryMarkers);
+  // createMap(L.layerGroup(plateBoundaryMarkers));
+}
 
 // create the markers, which call createmap()
 function createMarkers(response){
-  console.log(response);
+  console.log("earthquakes: ", response);
 
   let earthquakes = response.features;
   let earthquakeMarkers = [];
@@ -61,21 +84,29 @@ function createMap(earthquakeMarkers){
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   });
 
+  //** add topo map  */
+  let topographicMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: '&copy; <a href="https://www.opentopomap.org/">OpenTopoMap</a> contributors'
+});
+
   // Create a baseMaps object to hold the streetmap layer.
   let baseMaps = {
-    "Street Map": streetmap
+    "Street Map": streetmap,
+    "Topographic Map": topographicMap
   };
   // Create an overlayMaps object to hold the earthquakeMarkers layer.
   let overlayMaps = {
-    "Earthquakes": earthquakeMarkers
+    "Earthquakes": earthquakeMarkers,
+    "Plate Boundaries": plateBoundaryLayer	
   };
-  // Create the map object with options.
+  // Create the map object at the <div> with id "map", and pass it the streetmap and earthquakeMarkers layers.
   let map = L.map("map",{
     // set the center of the map to the north west africa to show all the map from this zoom level
     center: [24.73, -15.0059],
     zoom: 2,
     // add the streetmap and earthquakeMarkers layers to the map
-    layers: [streetmap, earthquakeMarkers]
+    layers: [streetmap, earthquakeMarkers, plateBoundaryLayer]
   });
   // Create a layer control, and pass it baseMaps and overlayMaps. Add the layer control to the map.
   L.control.layers(baseMaps, overlayMaps, {
